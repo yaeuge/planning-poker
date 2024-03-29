@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Planning poker</title>
+  <meta name="description" content="Planning poker for our modest needs">
+  <meta name="author" content="huauthor">
+
+  <!--link rel="icon" href="/favicon.ico"-->
+  <!--link rel="icon" href="/favicon.svg" type="image/svg+xml"-->
+  <!--link rel="apple-touch-icon" href="/apple-touch-icon.png"-->
+
+  <link rel="stylesheet" href="components/css/bootstrap.min.css">
+</head>
+
+<body class="py-4">
+  <div class="container">
+    <div class="row">
+      <div class="col-6">
+
+        <div class="mb-5" id="controls">
+          <div class="mb-3">
+            <label for="nameInput" class="form-label">Имя</label>
+            <input type="text" class="form-control" id="nameInput">
+          </div>
+          <div class="mb-3">
+            <label for="spBtnGroupWrapper" class="form-label">Оценка</label>
+            <div id="spBtnGroupWrapper">
+              <div class="btn-group" role="group" aria-label="SP group">
+                <button type="button" class="btn btn-light my-sp-button" data-sp="0">0</button>
+                <button type="button" class="btn btn-light my-sp-button" data-sp="0.25">0.25</button>
+                <button type="button" class="btn btn-light my-sp-button" data-sp="0.5">0.5</button>
+                <button type="button" class="btn btn-light my-sp-button" data-sp="0.75">0.75</button>
+                <button type="button" class="btn btn-light my-sp-button" data-sp="1">1</button>
+                <button type="button" class="btn btn-light my-sp-button" data-sp="1.5">1.5</button>
+                <button type="button" class="btn btn-light my-sp-button" data-sp="2">2</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-5">
+          <table class="table" id="result-table">
+            <thead>
+              <tr>
+                <th scope="col">Имя</th>
+                <th scope="col">Оценка</th>
+              </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="mb-3">
+          <button type="button" class="btn btn-dark" id="showResultsButton">Показать оценки</button>
+          <button type="button" class="btn btn-dark d-none" id="playAgainButton">Начать заново</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="components/js/bootstrap.min.js"></script>
+  <script>
+    var spButtons = document.getElementsByClassName("my-sp-button");
+    var table = document.getElementById('result-table');
+    var tBody = table.tBodies[0];
+
+    function resetSpSelection() {
+      for (var i = 0; i < spButtons.length; i++) {
+        spButtons[i].classList.remove("btn-primary");
+        spButtons[i].classList.remove("btn-light");
+        spButtons[i].classList.add("btn-light");
+      }
+    }
+
+    function setControlsBlock(isBlocked) {
+      for (var i = 0; i < spButtons.length; i++) {
+        spButtons[i].disabled = isBlocked;
+      }
+      document.getElementById("nameInput").disabled = isBlocked;
+    }
+
+    var selectSP = function() {
+      resetSpSelection();
+      var name = document.getElementById("nameInput").value;
+      if (/^\s*$/.test(name)) {
+        console.log("name is empty");
+        return;
+      }
+      this.classList.remove("btn-light");
+      this.classList.add("btn-primary");
+      var spValue = this.getAttribute("data-sp");
+      socket.emit('setsp', {sp: spValue, name: name});
+    };
+
+    for (var i = 0; i < spButtons.length; i++) {
+        spButtons[i].addEventListener('click', selectSP, false);
+    }
+
+    var spValues = [];
+
+
+    var socket = io();
+
+    socket.on('addusertotable', function(names) {
+      var newTBody = document.createElement('tbody');
+
+      for (var i = 0; i < names.length; i++) {
+        var row = newTBody.insertRow();
+        var nameCell = row.insertCell();
+        nameCell.innerHTML = names[i];
+
+        var spCell = row.insertCell();
+        spCell.innerHTML = "N/A";
+      }
+
+      table.replaceChild(newTBody, tBody);
+      tBody = newTBody;
+    });
+
+    socket.on('showresultsintable', function(answers) {
+      var newTBody = document.createElement('tbody');
+
+      for (var key in answers) {
+        var row = newTBody.insertRow();
+        var nameCell = row.insertCell();
+        nameCell.innerHTML = key;
+
+        var spCell = row.insertCell();
+        spCell.innerHTML = answers[key];
+      }
+
+      table.replaceChild(newTBody, tBody);
+      tBody = newTBody;
+
+      document.getElementById("showResultsButton").classList.add("d-none");
+      document.getElementById("playAgainButton").classList.remove("d-none");
+
+      setControlsBlock(true);
+    });
+
+    socket.on('reset', function() {
+      var newTBody = document.createElement('tbody');
+      table.replaceChild(newTBody, tBody);
+      tBody = newTBody;
+
+      document.getElementById("showResultsButton").classList.remove("d-none");
+      document.getElementById("playAgainButton").classList.add("d-none");
+      setControlsBlock(false);
+      resetSpSelection();
+      for (var i = 0; i < spButtons.length; i++) {
+        spButtons[i].blur();
+      }
+    });
+
+    document.getElementById("showResultsButton").addEventListener('click', function() {
+      socket.emit('getresults');
+    });
+
+    document.getElementById("playAgainButton").addEventListener('click', function() {
+      socket.emit('reset');
+    });
+
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,10 @@
+{
+  "name": "hermes-poker",
+  "version": "0.0.1",
+  "description": "my first socket.io app",
+  "dependencies": {
+    "bootstrap": "^5.2.0",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  }
+}
